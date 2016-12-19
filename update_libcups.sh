@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ "$1" -eq "" ]; then
+if [ -z "$1" ]; then
    echo "Please provide the source repo"
    exit -1
 else
@@ -51,6 +51,10 @@ else
     if [ $? -ne 0 ] ; then
        exit 1
     fi
+
+    # update version numbers in config.h
+    sed -i -e "s/^\(#.*CUPS_SVERSION\).*/\1 \"CUPS $NEW_REV\"/g" config.h
+    sed -i -e "s:^\(#.*CUPS_MINIMAL\).*:\1 \"CUPS/${NEW_REV#v}\":g" config.h
 
     git add -A
     git commit -m "Update libcups to $NEW_REV"
