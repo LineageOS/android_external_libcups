@@ -16,6 +16,7 @@ LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
 
 LOCAL_ARM_MODE := arm
+LOCAL_SDK_VERSION := current
 
 LOCAL_SRC_FILES := \
       cups/array.c cups/auth.c cups/backchannel.c cups/backend.c \
@@ -39,8 +40,6 @@ LOCAL_CFLAGS += \
 
 LOCAL_EXPORT_C_INCLUDE_DIRS := \
       $(LOCAL_PATH)/cups $(LOCAL_PATH)/filters $(LOCAL_PATH)
-
-LOCAL_C_INCLUDES := external/zlib
 
 LOCAL_MODULE := libcups
 LOCAL_MODULE_TAGS := optional
