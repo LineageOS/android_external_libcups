@@ -62,6 +62,11 @@ else
     git tag $NEW_REV
 
     echo
+    echo ">>> Updated license"
+
+    cp LICENSE.txt NOTICE
+
+    echo
     echo ">>> Updated libcups from $CURRENT_REV to $NEW_REV"
 fi
 
