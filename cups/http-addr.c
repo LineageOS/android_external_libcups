@@ -8,7 +8,7 @@
  * property of Apple Inc. and are protected by Federal copyright
  * law.  Distribution and use rights are outlined in the file "LICENSE.txt"
  * which should have been included with this file.  If this file is
- * file is missing or damaged, see the license at "http://www.cups.org/".
+ * missing or damaged, see the license at "http://www.cups.org/".
  *
  * This file is subject to the Apple OS-Developed Software exception.
  */
@@ -869,6 +869,18 @@ httpGetHostname(http_t *http,		/* I - HTTP connection or NULL */
 
     if (strlen(s) > 6 && !strcmp(s + strlen(s) - 6, ".local"))
       strlcat(s, ".", (size_t)slen);
+  }
+
+ /*
+  * Convert the hostname to lowercase as needed...
+  */
+
+  if (s[0] != '/')
+  {
+    char	*ptr;			/* Pointer into string */
+
+    for (ptr = s; *ptr; ptr ++)
+      *ptr = (char)_cups_tolower((int)*ptr);
   }
 
  /*
