@@ -8,7 +8,7 @@
  * property of Apple Inc. and are protected by Federal copyright
  * law.  Distribution and use rights are outlined in the file "LICENSE.txt"
  * which should have been included with this file.  If this file is
- * file is missing or damaged, see the license at "http://www.cups.org/".
+ * missing or damaged, see the license at "http://www.cups.org/".
  *
  * This file is subject to the Apple OS-Developed Software exception.
  */
@@ -124,7 +124,8 @@ typedef struct _cups_globals_s		/**** CUPS global state data ****/
 			*ppd_size_lut,	/* Lookup table for PPD names */
 			*pwg_size_lut;	/* Lookup table for PWG names */
   pwg_media_t		pwg_media;	/* PWG media data for custom size */
-  char			pwg_name[65];	/* PWG media name for custom size */
+  char			pwg_name[65],	/* PWG media name for custom size */
+			ppd_name[41];	/* PPD media name for custom size */
 
   /* request.c */
   http_t		*http;		/* Current server connection */
