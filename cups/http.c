@@ -11,7 +11,7 @@
  * property of Apple Inc. and are protected by Federal copyright
  * law.  Distribution and use rights are outlined in the file "LICENSE.txt"
  * which should have been included with this file.  If this file is
- * file is missing or damaged, see the license at "http://www.cups.org/".
+ * missing or damaged, see the license at "http://www.cups.org/".
  *
  * This file is subject to the Apple OS-Developed Software exception.
  */
@@ -3666,6 +3666,9 @@ httpWriteResponse(http_t        *http,	/* I - HTTP connection */
       http->state = HTTP_STATE_WAITING;
       return (0);
     }
+
+    if (http->state == HTTP_STATE_POST_RECV || http->state == HTTP_STATE_GET)
+      http->state ++;
 
 #ifdef HAVE_LIBZ
    /*
