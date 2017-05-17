@@ -1,14 +1,14 @@
 /*
  * Internet Printing Protocol functions for CUPS.
  *
- * Copyright 2007-2015 by Apple Inc.
+ * Copyright 2007-2017 by Apple Inc.
  * Copyright 1997-2007 by Easy Software Products, all rights reserved.
  *
  * These coded instructions, statements, and computer programs are the
  * property of Apple Inc. and are protected by Federal copyright
  * law.  Distribution and use rights are outlined in the file "LICENSE.txt"
  * which should have been included with this file.  If this file is
- * file is missing or damaged, see the license at "http://www.cups.org/".
+ * missing or damaged, see the license at "http://www.cups.org/".
  *
  * This file is subject to the Apple OS-Developed Software exception.
  */
@@ -1419,11 +1419,6 @@ ippContainsString(
     case IPP_TAG_CHARSET :
     case IPP_TAG_KEYWORD :
     case IPP_TAG_LANGUAGE :
-    case IPP_TAG_MIMETYPE :
-    case IPP_TAG_NAME :
-    case IPP_TAG_NAMELANG :
-    case IPP_TAG_TEXT :
-    case IPP_TAG_TEXTLANG :
     case IPP_TAG_URI :
     case IPP_TAG_URISCHEME :
 	for (i = attr->num_values, avalue = attr->values;
@@ -1434,6 +1429,25 @@ ippContainsString(
 	                attr->num_values - i, avalue->string.text));
 
 	  if (!strcmp(value, avalue->string.text))
+	  {
+	    DEBUG_puts("1ippContainsString: Returning 1 (match)");
+	    return (1);
+	  }
+        }
+
+    case IPP_TAG_MIMETYPE :
+    case IPP_TAG_NAME :
+    case IPP_TAG_NAMELANG :
+    case IPP_TAG_TEXT :
+    case IPP_TAG_TEXTLANG :
+	for (i = attr->num_values, avalue = attr->values;
+	     i > 0;
+	     i --, avalue ++)
+	{
+	  DEBUG_printf(("1ippContainsString: value[%d]=\"%s\"",
+	                attr->num_values - i, avalue->string.text));
+
+	  if (!_cups_strcasecmp(value, avalue->string.text))
 	  {
 	    DEBUG_puts("1ippContainsString: Returning 1 (match)");
 	    return (1);
@@ -2556,13 +2570,16 @@ ippGetString(ipp_attribute_t *attr,	/* I - IPP attribute */
              int             element,	/* I - Value number (0-based) */
 	     const char      **language)/* O - Language code (@code NULL@ for don't care) */
 {
+  ipp_tag_t	tag;			/* Value tag */
+
+
  /*
   * Range check input...
   */
 
-  if (!attr || element < 0 || element >= attr->num_values ||
-      (attr->value_tag != IPP_TAG_TEXTLANG && attr->value_tag != IPP_TAG_NAMELANG &&
-       (attr->value_tag < IPP_TAG_TEXT || attr->value_tag > IPP_TAG_MIMETYPE)))
+  tag = ippGetValueTag(attr);
+
+  if (!attr || element < 0 || element >= attr->num_values || (tag != IPP_TAG_TEXTLANG && tag != IPP_TAG_NAMELANG && (tag < IPP_TAG_TEXT || tag > IPP_TAG_MIMETYPE)))
     return (NULL);
 
  /*

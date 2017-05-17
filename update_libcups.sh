@@ -14,7 +14,7 @@ echo
 echo "== get current rev =="
 cd $TARGET_DIR
 
-CURRENT_REV=$(git tag -l | grep -v "release" | grep -v "b" | grep -v "rc" | sort | tail -n1)
+CURRENT_REV=$(cat libcups_version)
 echo "Current rev is $CURRENT_REV"
 
 echo
@@ -56,15 +56,14 @@ else
     sed -i -e "s/^\(#.*CUPS_SVERSION\).*/\1 \"CUPS $NEW_REV\"/g" config.h
     sed -i -e "s:^\(#.*CUPS_MINIMAL\).*:\1 \"CUPS/${NEW_REV#v}\":g" config.h
 
-    git add -A
-    git commit -m "Update libcups to $NEW_REV"
-
-    git tag $NEW_REV
-
     echo
     echo ">>> Updated license"
 
     cp LICENSE.txt NOTICE
+
+    echo $NEW_REV > libcups_version
+    git add -A
+    git commit -m "Update libcups to $NEW_REV"
 
     echo
     echo ">>> Updated libcups from $CURRENT_REV to $NEW_REV"
