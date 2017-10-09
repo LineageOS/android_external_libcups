@@ -76,10 +76,10 @@ cc_library_shared {
     cflags: [
         "-D_PPD_DEPRECATED=",
         "-Wextra",
+        "-Werror",
         "-Wno-unused-parameter",
         "-Wno-sign-compare",
         "-Wno-missing-field-initializers",
-        "-Wno-error",
         "-Wno-implicit-function-declaration",
     ],
 
