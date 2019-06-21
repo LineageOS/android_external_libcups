@@ -1,8 +1,8 @@
 /*
  * Printing utilities for CUPS.
  *
- * Copyright 2007-2015 by Apple Inc.
- * Copyright 1997-2006 by Easy Software Products.
+ * Copyright © 2007-2018 by Apple Inc.
+ * Copyright © 1997-2006 by Easy Software Products.
  *
  * These coded instructions, statements, and computer programs are the
  * property of Apple Inc. and are protected by Federal copyright
@@ -20,11 +20,11 @@
 #include "cups-private.h"
 #include <fcntl.h>
 #include <sys/stat.h>
-#if defined(WIN32) || defined(__EMX__)
+#if defined(_WIN32) || defined(__EMX__)
 #  include <io.h>
 #else
 #  include <unistd.h>
-#endif /* WIN32 || __EMX__ */
+#endif /* _WIN32 || __EMX__ */
 
 
 /*
@@ -35,6 +35,8 @@
  *
  * Use the @link cupsLastError@ and @link cupsLastErrorString@ functions to get
  * the cause of any failure.
+ *
+ * @exclude all@
  */
 
 int					/* O - 1 on success, 0 on failure */
@@ -58,7 +60,7 @@ cupsCancelJob(const char *name,		/* I - Name of printer or class */
  * Use the @link cupsLastError@ and @link cupsLastErrorString@ functions to get
  * the cause of any failure.
  *
- * @since CUPS 1.4/macOS 10.6@
+ * @since CUPS 1.4/macOS 10.6@ @exclude all@
  */
 
 ipp_status_t				/* O - IPP status */
@@ -146,7 +148,7 @@ cupsCancelJob2(http_t     *http,	/* I - Connection to server or @code CUPS_HTTP_
  * print, use the @link cupsPrintFile2@ or @link cupsPrintFiles2@ function
  * instead.
  *
- * @since CUPS 1.4/macOS 10.6@
+ * @since CUPS 1.4/macOS 10.6@ @exclude all@
  */
 
 int					/* O - Job ID or 0 on error */
@@ -157,12 +159,10 @@ cupsCreateJob(
     int           num_options,		/* I - Number of options */
     cups_option_t *options)		/* I - Options */
 {
-  char		printer_uri[1024],	/* Printer URI */
-		resource[1024];		/* Printer resource */
-  ipp_t		*request,		/* Create-Job request */
-		*response;		/* Create-Job response */
-  ipp_attribute_t *attr;		/* job-id attribute */
   int		job_id = 0;		/* job-id value */
+  ipp_status_t  status;                 /* Create-Job status */
+  cups_dest_t	*dest;			/* Destination */
+  cups_dinfo_t  *info;                  /* Destination information */
 
 
   DEBUG_printf(("cupsCreateJob(http=%p, name=\"%s\", title=\"%s\", num_options=%d, options=%p)", (void *)http, name, title, num_options, (void *)options));
@@ -178,46 +178,42 @@ cupsCreateJob(
   }
 
  /*
-  * Build a Create-Job request...
+  * Lookup the destination...
   */
 
-  if ((request = ippNewRequest(IPP_OP_CREATE_JOB)) == NULL)
+  if ((dest = cupsGetNamedDest(http, name, NULL)) == NULL)
   {
-    _cupsSetError(IPP_STATUS_ERROR_INTERNAL, strerror(ENOMEM), 0);
+    DEBUG_puts("1cupsCreateJob: Destination not found.");
+    _cupsSetError(IPP_STATUS_ERROR_INTERNAL, strerror(ENOENT), 0);
     return (0);
   }
 
-  httpAssembleURIf(HTTP_URI_CODING_ALL, printer_uri, sizeof(printer_uri), "ipp",
-                   NULL, "localhost", ippPort(), "/printers/%s", name);
-  snprintf(resource, sizeof(resource), "/printers/%s", name);
-
-  ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "printer-uri",
-               NULL, printer_uri);
-  ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "requesting-user-name",
-               NULL, cupsUser());
-  if (title)
-    ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_NAME, "job-name", NULL,
-                 title);
-  cupsEncodeOptions2(request, num_options, options, IPP_TAG_OPERATION);
-  cupsEncodeOptions2(request, num_options, options, IPP_TAG_JOB);
-  cupsEncodeOptions2(request, num_options, options, IPP_TAG_SUBSCRIPTION);
-
  /*
-  * Send the request and get the job-id...
+  * Query dest information and create the job...
   */
 
-  response = cupsDoRequest(http, request, resource);
+  DEBUG_puts("1cupsCreateJob: Querying destination info.");
+  if ((info = cupsCopyDestInfo(http, dest)) == NULL)
+  {
+    DEBUG_puts("1cupsCreateJob: Query failed.");
+    cupsFreeDests(1, dest);
+    return (0);
+  }
 
-  if ((attr = ippFindAttribute(response, "job-id", IPP_TAG_INTEGER)) != NULL)
-    job_id = attr->values[0].integer;
+  status = cupsCreateDestJob(http, dest, info, &job_id, title, num_options, options);
+  DEBUG_printf(("1cupsCreateJob: cupsCreateDestJob returned %04x (%s)", status, ippErrorString(status)));
 
-  ippDelete(response);
+  cupsFreeDestInfo(info);
+  cupsFreeDests(1, dest);
 
  /*
-  * Return it...
+  * Return the job...
   */
 
-  return (job_id);
+  if (status >= IPP_STATUS_REDIRECTION_OTHER_SITE)
+    return (0);
+  else
+    return (job_id);
 }
 
 
@@ -226,7 +222,7 @@ cupsCreateJob(
  *
  * The document must have been started using @link cupsStartDocument@.
  *
- * @since CUPS 1.4/macOS 10.6@
+ * @since CUPS 1.4/macOS 10.6@ @exclude all@
  */
 
 ipp_status_t				/* O - Status of document submission */
@@ -277,7 +273,7 @@ cupsFreeJobs(int        num_jobs,	/* I - Number of jobs */
  * This function is deprecated and no longer returns a list of printer
  * classes - use @link cupsGetDests@ instead.
  *
- * @deprecated@
+ * @deprecated@ @exclude all@
  */
 
 int					/* O - Number of classes */
@@ -299,6 +295,8 @@ cupsGetClasses(char ***classes)		/* O - Classes */
  * Applications should use the @link cupsGetDests@ and @link cupsGetDest@
  * functions to get the user-defined default printer, as this function does
  * not support the lpoptions-defined default printer.
+ *
+ * @exclude all@
  */
 
 const char *				/* O - Default printer or @code NULL@ */
@@ -322,7 +320,7 @@ cupsGetDefault(void)
  * functions to get the user-defined default printer, as this function does
  * not support the lpoptions-defined default printer.
  *
- * @since CUPS 1.1.21/macOS 10.4@
+ * @since CUPS 1.1.21/macOS 10.4@ @exclude all@
  */
 
 const char *				/* O - Default printer or @code NULL@ */
@@ -388,6 +386,8 @@ cupsGetDefault2(http_t *http)		/* I - Connection to server or @code CUPS_HTTP_DE
  * of state, while @code CUPS_WHICHJOBS_ACTIVE@ returns jobs that are
  * pending, processing, or held and @code CUPS_WHICHJOBS_COMPLETED@ returns
  * jobs that are stopped, canceled, aborted, or completed.
+ *
+ * @exclude all@
  */
 
 int					/* O - Number of jobs */
@@ -683,7 +683,7 @@ cupsGetJobs2(http_t     *http,		/* I - Connection to server or @code CUPS_HTTP_D
  * This function is deprecated and no longer returns a list of printers - use
  * @link cupsGetDests@ instead.
  *
- * @deprecated@
+ * @deprecated@ @exclude all@
  */
 
 int					/* O - Number of printers */
@@ -698,6 +698,8 @@ cupsGetPrinters(char ***printers)	/* O - Printers */
 
 /*
  * 'cupsPrintFile()' - Print a file to a printer or class on the default server.
+ *
+ * @exclude all@
  */
 
 int					/* O - Job ID or 0 on error */
@@ -718,7 +720,7 @@ cupsPrintFile(const char    *name,	/* I - Destination name */
  * 'cupsPrintFile2()' - Print a file to a printer or class on the specified
  *                      server.
  *
- * @since CUPS 1.1.21/macOS 10.4@
+ * @since CUPS 1.1.21/macOS 10.4@ @exclude all@
  */
 
 int					/* O - Job ID or 0 on error */
@@ -740,6 +742,8 @@ cupsPrintFile2(
 /*
  * 'cupsPrintFiles()' - Print one or more files to a printer or class on the
  *                      default server.
+ *
+ * @exclude all@
  */
 
 int					/* O - Job ID or 0 on error */
@@ -766,7 +770,7 @@ cupsPrintFiles(
  * 'cupsPrintFiles2()' - Print one or more files to a printer or class on the
  *                       specified server.
  *
- * @since CUPS 1.1.21/macOS 10.4@
+ * @since CUPS 1.1.21/macOS 10.4@ @exclude all@
  */
 
 int					/* O - Job ID or 0 on error */
@@ -896,7 +900,7 @@ cupsPrintFiles2(
  * @code CUPS_FORMAT_TEXT@ are provided for the "format" argument, although
  * any supported MIME type string can be supplied.
  *
- * @since CUPS 1.4/macOS 10.6@
+ * @since CUPS 1.4/macOS 10.6@ @exclude all@
  */
 
 http_status_t				/* O - HTTP status of request */
@@ -951,3 +955,4 @@ cupsStartDocument(
 
   return (status);
 }
+

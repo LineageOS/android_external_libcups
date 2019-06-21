@@ -1,7 +1,7 @@
 /*
  * Private threading definitions for CUPS.
  *
- * Copyright 2009-2016 by Apple Inc.
+ * Copyright 2009-2017 by Apple Inc.
  *
  * These coded instructions, statements, and computer programs are the
  * property of Apple Inc. and are protected by Federal copyright
@@ -46,7 +46,7 @@ typedef pthread_key_t	_cups_threadkey_t;
 #    define _cupsThreadGetData(k) pthread_getspecific(k)
 #    define _cupsThreadSetData(k,p) pthread_setspecific(k,p)
 
-#  elif defined(WIN32)			/* Windows threading */
+#  elif defined(_WIN32)			/* Windows threading */
 #    include <winsock2.h>
 #    include <windows.h>
 typedef void *(__stdcall *_cups_thread_func_t)(void *arg);
@@ -99,6 +99,7 @@ extern void	_cupsRWLockWrite(_cups_rwlock_t *rwlock);
 extern void	_cupsRWUnlock(_cups_rwlock_t *rwlock);
 extern void	_cupsThreadCancel(_cups_thread_t thread);
 extern _cups_thread_t _cupsThreadCreate(_cups_thread_func_t func, void *arg);
+extern void     _cupsThreadDetach(_cups_thread_t thread);
 extern void	*_cupsThreadWait(_cups_thread_t thread);
 
 #  ifdef __cplusplus
