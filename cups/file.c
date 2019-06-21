@@ -4,9 +4,9 @@
  * Since stdio files max out at 256 files on many systems, we have to
  * write similar functions without this limit.  At the same time, using
  * our own file functions allows us to provide transparent support of
- * gzip'd print files, PPD files, etc.
+ * different line endings, gzip'd print files, PPD files, etc.
  *
- * Copyright 2007-2015 by Apple Inc.
+ * Copyright 2007-2018 by Apple Inc.
  * Copyright 1997-2007 by Easy Software Products, all rights reserved.
  *
  * These coded instructions, statements, and computer programs are the
@@ -26,6 +26,39 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#  ifdef HAVE_LIBZ
+#    include <zlib.h>
+#  endif /* HAVE_LIBZ */
+
+
+/*
+ * Internal structures...
+ */
+
+struct _cups_file_s			/**** CUPS file structure... ****/
+
+{
+  int		fd;			/* File descriptor */
+  char		mode,			/* Mode ('r' or 'w') */
+		compressed,		/* Compression used? */
+		is_stdio,		/* stdin/out/err? */
+		eof,			/* End of file? */
+		buf[4096],		/* Buffer */
+		*ptr,			/* Pointer into buffer */
+		*end;			/* End of buffer data */
+  off_t		pos,			/* Position in file */
+		bufpos;			/* File position for start of buffer */
+
+#ifdef HAVE_LIBZ
+  z_stream	stream;			/* (De)compression stream */
+  Bytef		cbuf[4096];		/* (De)compression buffer */
+  uLong		crc;			/* (De)compression CRC */
+#endif /* HAVE_LIBZ */
+
+  char		*printf_buffer;		/* cupsFilePrintf buffer */
+  size_t	printf_size;		/* Size of cupsFilePrintf buffer */
+};
+
 
 /*
  * Local functions...
@@ -40,7 +73,7 @@ static ssize_t	cups_read(cups_file_t *fp, char *buf, size_t bytes);
 static ssize_t	cups_write(cups_file_t *fp, const char *buf, size_t bytes);
 
 
-#ifndef WIN32
+#ifndef _WIN32
 /*
  * '_cupsFileCheck()' - Check the permissions of the given filename.
  */
@@ -306,7 +339,7 @@ _cupsFileCheckFilter(
 
   fprintf(stderr, "%s: %s\n", prefix, message);
 }
-#endif /* !WIN32 */
+#endif /* !_WIN32 */
 
 
 /*
@@ -321,7 +354,6 @@ cupsFileClose(cups_file_t *fp)		/* I - CUPS file */
   int	fd;				/* File descriptor */
   char	mode;				/* Open mode */
   int	status;				/* Return status */
-  int	is_stdio;			/* Is a stdio file? */
 
 
   DEBUG_printf(("cupsFileClose(fp=%p)", (void *)fp));
@@ -410,12 +442,19 @@ cupsFileClose(cups_file_t *fp)		/* I - CUPS file */
 #endif /* HAVE_LIBZ */
 
  /*
+  * If this is one of the cupsFileStdin/out/err files, return now and don't
+  * actually free memory or close (these last the life of the process...)
+  */
+
+  if (fp->is_stdio)
+    return (status);
+
+/*
   * Save the file descriptor we used and free memory...
   */
 
-  fd       = fp->fd;
-  mode     = fp->mode;
-  is_stdio = fp->is_stdio;
+  fd   = fp->fd;
+  mode = fp->mode;
 
   if (fp->printf_buffer)
     free(fp->printf_buffer);
@@ -431,11 +470,8 @@ cupsFileClose(cups_file_t *fp)		/* I - CUPS file */
     if (httpAddrClose(NULL, fd) < 0)
       status = -1;
   }
-  else if (!is_stdio)
-  {
-    if (close(fd) < 0)
-      status = -1;
-  }
+  else if (close(fd) < 0)
+    status = -1;
 
   return (status);
 }
@@ -523,22 +559,22 @@ cupsFileFind(const char *filename,	/* I - File to find */
 
   while (*path)
   {
-#ifdef WIN32
+#ifdef _WIN32
     if (*path == ';' || (*path == ':' && ((bufptr - buffer) > 1 || !isalpha(buffer[0] & 255))))
 #else
     if (*path == ';' || *path == ':')
-#endif /* WIN32 */
+#endif /* _WIN32 */
     {
       if (bufptr > buffer && bufptr[-1] != '/' && bufptr < bufend)
         *bufptr++ = '/';
 
       strlcpy(bufptr, filename, (size_t)(bufend - bufptr));
 
-#ifdef WIN32
+#ifdef _WIN32
       if (!access(buffer, 0))
 #else
       if (!access(buffer, executable ? X_OK : 0))
-#endif /* WIN32 */
+#endif /* _WIN32 */
       {
         DEBUG_printf(("1cupsFileFind: Returning \"%s\"", buffer));
         return (buffer);
@@ -989,11 +1025,11 @@ cupsFileLock(cups_file_t *fp,		/* I - CUPS file */
   * Try the lock...
   */
 
-#ifdef WIN32
+#ifdef _WIN32
   return (_locking(fp->fd, block ? _LK_LOCK : _LK_NBLCK, 0));
 #else
   return (lockf(fp->fd, block ? F_LOCK : F_TLOCK, 0));
-#endif /* WIN32 */
+#endif /* _WIN32 */
 }
 
 
@@ -1081,11 +1117,11 @@ cupsFileOpen(const char *filename,	/* I - Name of file */
 	}
 
 	if (fd >= 0)
-#ifdef WIN32
+#ifdef _WIN32
 	  _chsize(fd, 0);
 #else
 	  ftruncate(fd, 0);
-#endif /* WIN32 */
+#endif /* _WIN32 */
         break;
 
     case 's' : /* Read/write socket */
@@ -1252,11 +1288,23 @@ cupsFileOpenFd(int        fd,		/* I - File descriptor */
   * Don't pass this file to child processes...
   */
 
-#ifndef WIN32
+#ifndef _WIN32
   fcntl(fp->fd, F_SETFD, fcntl(fp->fd, F_GETFD) | FD_CLOEXEC);
-#endif /* !WIN32 */
+#endif /* !_WIN32 */
 
   return (fp);
+}
+
+
+/*
+ * '_cupsFilePeekAhead()' - See if the requested character is buffered up.
+ */
+
+int					/* O - 1 if present, 0 otherwise */
+_cupsFilePeekAhead(cups_file_t *fp,	/* I - CUPS file */
+                   int         ch)	/* I - Character */
+{
+  return (fp && fp->ptr && memchr(fp->ptr, ch, (size_t)(fp->end - fp->ptr)));
 }
 
 
@@ -1384,7 +1432,11 @@ cupsFilePrintf(cups_file_t *fp,		/* I - CUPS file */
   {
     memcpy(fp->ptr, fp->printf_buffer, (size_t)bytes);
     fp->ptr += bytes;
-    return ((int)bytes);
+
+    if (fp->is_stdio && cupsFileFlush(fp))
+      return (-1);
+    else
+      return ((int)bytes);
   }
 }
 
@@ -1563,7 +1615,11 @@ cupsFilePuts(cups_file_t *fp,		/* I - CUPS file */
   {
     memcpy(fp->ptr, s, (size_t)bytes);
     fp->ptr += bytes;
-    return ((int)bytes);
+
+    if (fp->is_stdio && cupsFileFlush(fp))
+      return (-1);
+    else
+      return ((int)bytes);
   }
 }
 
@@ -2008,11 +2064,11 @@ cupsFileUnlock(cups_file_t *fp)		/* I - CUPS file */
   * Unlock...
   */
 
-#ifdef WIN32
+#ifdef _WIN32
   return (_locking(fp->fd, _LK_UNLCK, 0));
 #else
   return (lockf(fp->fd, F_ULOCK, 0));
-#endif /* WIN32 */
+#endif /* _WIN32 */
 }
 
 
@@ -2466,6 +2522,8 @@ cups_fill(cups_file_t *fp)		/* I - CUPS file */
 	* file header...
 	*/
 
+        inflateEnd(&fp->stream);
+
 	fp->compressed = 0;
       }
       else if (status < Z_OK)
@@ -2540,9 +2598,9 @@ cups_open(const char *filename,		/* I - Filename */
 {
   int		fd;			/* File descriptor */
   struct stat	fileinfo;		/* File information */
-#ifndef WIN32
+#ifndef _WIN32
   struct stat	linkinfo;		/* Link information */
-#endif /* !WIN32 */
+#endif /* !_WIN32 */
 
 
  /*
@@ -2570,18 +2628,18 @@ cups_open(const char *filename,		/* I - Filename */
     return (-1);
   }
 
-#ifdef WIN32
+#ifdef _WIN32
   if (fileinfo.st_mode & _S_IFDIR)
 #else
   if (S_ISDIR(fileinfo.st_mode))
-#endif /* WIN32 */
+#endif /* _WIN32 */
   {
     close(fd);
     errno = EISDIR;
     return (-1);
   }
 
-#ifndef WIN32
+#ifndef _WIN32
  /*
   * Then use lstat to determine whether the filename is a symlink...
   */
@@ -2609,7 +2667,7 @@ cups_open(const char *filename,		/* I - Filename */
     errno = EPERM;
     return (-1);
   }
-#endif /* !WIN32 */
+#endif /* !_WIN32 */
 
   return (fd);
 }
@@ -2635,7 +2693,7 @@ cups_read(cups_file_t *fp,		/* I - CUPS file */
 
   for (;;)
   {
-#ifdef WIN32
+#ifdef _WIN32
     if (fp->mode == 's')
       total = (ssize_t)recv(fp->fd, buf, (unsigned)bytes, 0);
     else
@@ -2645,7 +2703,7 @@ cups_read(cups_file_t *fp,		/* I - CUPS file */
       total = recv(fp->fd, buf, bytes, 0);
     else
       total = read(fp->fd, buf, bytes);
-#endif /* WIN32 */
+#endif /* _WIN32 */
 
     DEBUG_printf(("9cups_read: total=" CUPS_LLFMT, CUPS_LLCAST total));
 
@@ -2692,7 +2750,7 @@ cups_write(cups_file_t *fp,		/* I - CUPS file */
   total = 0;
   while (bytes > 0)
   {
-#ifdef WIN32
+#ifdef _WIN32
     if (fp->mode == 's')
       count = (ssize_t)send(fp->fd, buf, (unsigned)bytes, 0);
     else
@@ -2702,7 +2760,7 @@ cups_write(cups_file_t *fp,		/* I - CUPS file */
       count = send(fp->fd, buf, bytes, 0);
     else
       count = write(fp->fd, buf, bytes);
-#endif /* WIN32 */
+#endif /* _WIN32 */
 
     DEBUG_printf(("9cups_write: count=" CUPS_LLFMT, CUPS_LLCAST count));
 
