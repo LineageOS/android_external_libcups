@@ -30,7 +30,9 @@
 
 static char		*tls_keypath = NULL;
 					/* Server cert keychain path */
-static int		tls_options = -1;/* Options for TLS connections */
+static int		tls_options = -1,/* Options for TLS connections */
+  tls_min_version = _HTTP_TLS_1_0,
+  tls_max_version = _HTTP_TLS_MAX;
 
 
 /*
@@ -414,9 +416,11 @@ _httpTLSRead(http_t *http,		/* I - Connection to server */
  */
 
 void
-_httpTLSSetOptions(int options)		/* I - Options */
+_httpTLSSetOptions(int options, int min_version, int max_version)		/* I - Options */
 {
   tls_options = options;
+  tls_min_version = min_version;
+  tls_max_version = max_version;
 }
 
 
@@ -453,12 +457,9 @@ _httpTLSStart(http_t *http)		/* I - Connection to server */
     return (-1);
   }
 
-  if (tls_options & _HTTP_TLS_DENY_TLS10)
-    context = SSL_CTX_new(http->mode == _HTTP_MODE_CLIENT ? TLSv1_1_client_method() : TLSv1_1_server_method());
-  else if (tls_options & _HTTP_TLS_ALLOW_SSL3)
-    context = SSL_CTX_new(http->mode == _HTTP_MODE_CLIENT ? SSLv3_client_method() : SSLv3_server_method());
-  else
-    context = SSL_CTX_new(http->mode == _HTTP_MODE_CLIENT ? TLSv1_client_method() : TLSv1_server_method());
+  context = SSL_CTX_new(TLS_method());
+  SSL_CTX_set_min_proto_version(context, tls_min_version);
+  SSL_CTX_set_max_proto_version(context, tls_max_version);
 
   bio = BIO_new(_httpBIOMethods());
   BIO_ctrl(bio, BIO_C_SET_FILE_PTR, 0, (char *)http);

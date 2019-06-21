@@ -1,8 +1,8 @@
 #
-# API library Makefile for CUPS.
+# Library Makefile for CUPS.
 #
-# Copyright 2007-2016 by Apple Inc.
-# Copyright 1997-2006 by Easy Software Products, all rights reserved.
+# Copyright © 2007-2018 by Apple Inc.
+# Copyright © 1997-2006 by Easy Software Products, all rights reserved.
 #
 # These coded instructions, statements, and computer programs are the
 # property of Apple Inc. and are protected by Federal copyright
@@ -89,6 +89,7 @@ TESTOBJS	= \
 		testcups.o \
 		testdest.o \
 		testfile.o \
+		testgetdests.o \
 		testhttp.o \
 		testi18n.o \
 		testipp.o \
@@ -158,6 +159,7 @@ UNITTARGETS =	\
 		testcups \
 		testdest \
 		testfile \
+		testgetdests \
 		testhttp \
 		testi18n \
 		testipp \
@@ -310,8 +312,9 @@ uninstall:
 
 libcups.so.2:	$(LIBOBJS)
 	echo Linking $@...
-	$(DSO) $(ARCHFLAGS) $(DSOFLAGS) -o $@ $(LIBOBJS) $(LIBGSSAPI) \
+	$(DSO) $(ARCHFLAGS) $(LDFLAGS) $(DSOFLAGS) -o $@ $(LIBOBJS) $(LIBGSSAPI) \
 		$(SSLLIBS) $(DNSSDLIBS) $(COMMONLIBS) $(LIBZ)
+	$(CODE_SIGN) -s "$(CODE_SIGN_IDENTITY)" $@
 	$(RM) `basename $@ .2`
 	$(LN) $@ `basename $@ .2`
 
@@ -327,13 +330,14 @@ libcups.2.dylib:	$(LIBOBJS) $(LIBCUPSORDER)
 		grep -v -E -e '^(_cupsConnect|_cupsCharset|_cupsEncodingName|_cupsSetDefaults|_cupsSetHTTPError|_cupsUserDefault)$$' | \
 		sort >t.exp
 	echo Linking $@...
-	$(DSO) $(ARCHFLAGS) $(DSOFLAGS) -o $@ \
+	$(DSO) $(ARCHFLAGS) $(LDFLAGS) $(DSOFLAGS) -o $@ \
 		-install_name $(libdir)/$@ \
-		-current_version 2.12.0 \
+		-current_version 2.13.0 \
 		-compatibility_version 2.0.0 \
 		-exported_symbols_list t.exp \
 		$(LIBOBJS) $(LIBGSSAPI) $(SSLLIBS) $(DNSSDLIBS) \
 		$(COMMONLIBS) $(LIBZ)
+	$(CODE_SIGN) -s "$(CODE_SIGN_IDENTITY)" $@
 	$(RM) libcups.dylib t.exp
 	$(LN) $@ libcups.dylib
 
@@ -344,8 +348,8 @@ libcups.2.dylib:	$(LIBOBJS) $(LIBCUPSORDER)
 
 libcups.la:    $(LIBOBJS)
 	echo Linking $@...
-	$(CC) $(ARCHFLAGS) $(DSOFLAGS) -o $@ $(LIBOBJS:.o=.lo) \
-		-rpath $(LIBDIR) -version-info 2:12 $(LIBGSSAPI) $(SSLLIBS) \
+	$(LD_CC) $(ARCHFLAGS) $(LDFLAGS) $(DSOFLAGS) -o $@ $(LIBOBJS:.o=.lo) \
+		-rpath $(LIBDIR) -version-info 2:13 $(LIBGSSAPI) $(SSLLIBS) \
 		$(DNSSDLIBS) $(COMMONLIBS) $(LIBZ)
 
 
@@ -367,12 +371,12 @@ libcups.a:	$(LIBOBJS)
 libcups2.def: $(LIBOBJS) Makefile
 	echo Generating $@...
 	echo "LIBRARY libcups2" >libcups2.def
-	echo "VERSION 2.12" >>libcups2.def
+	echo "VERSION 2.13" >>libcups2.def
 	echo "EXPORTS" >>libcups2.def
 	(nm $(LIBOBJS) 2>/dev/null | grep "T _" | awk '{print $$3}'; \
 	 echo __cups_strcpy; echo __cups_strlcat; echo __cups_strlcpy) | \
 		grep -v -E \
-		    -e 'cups_debug|Apple|BackChannel|Backend|FileCheck|Filter|GSSService|SetNegotiate|SideChannel' \
+		    -e 'cups_debug|Apple|BackChannel|Backend|FileCheck|Filter|GSSService|SetNegotiate|SideChannel|SNMP' \
 		    -e 'Block$$' | \
 		sed -e '1,$$s/^_//' | sort >>libcups2.def
 
@@ -383,8 +387,9 @@ libcups2.def: $(LIBOBJS) Makefile
 
 testadmin:	testadmin.o $(LIBCUPSSTATIC)
 	echo Linking $@...
-	$(CC) $(LDFLAGS) -o $@ testadmin.o $(LIBCUPSSTATIC) \
+	$(LD_CC) $(LDFLAGS) -o $@ testadmin.o $(LIBCUPSSTATIC) \
 		$(LIBGSSAPI) $(SSLLIBS) $(DNSSDLIBS) $(COMMONLIBS) $(LIBZ)
+	$(CODE_SIGN) -s "$(CODE_SIGN_IDENTITY)" $@
 
 
 #
@@ -393,8 +398,9 @@ testadmin:	testadmin.o $(LIBCUPSSTATIC)
 
 testarray:	testarray.o $(LIBCUPSSTATIC)
 	echo Linking $@...
-	$(CC) $(ARCHFLAGS) $(LDFLAGS) -o $@ testarray.o $(LIBCUPSSTATIC) \
+	$(LD_CC) $(ARCHFLAGS) $(LDFLAGS) -o $@ testarray.o $(LIBCUPSSTATIC) \
 		$(LIBGSSAPI) $(SSLLIBS) $(DNSSDLIBS) $(COMMONLIBS) $(LIBZ)
+	$(CODE_SIGN) -s "$(CODE_SIGN_IDENTITY)" $@
 	echo Running array API tests...
 	./testarray
 
@@ -405,8 +411,9 @@ testarray:	testarray.o $(LIBCUPSSTATIC)
 
 testcache:	testcache.o $(LIBCUPSSTATIC)
 	echo Linking $@...
-	$(CC) $(LDFLAGS) -o $@ testcache.o $(LIBCUPSSTATIC) \
+	$(LD_CC) $(LDFLAGS) -o $@ testcache.o $(LIBCUPSSTATIC) \
 		$(LIBGSSAPI) $(SSLLIBS) $(DNSSDLIBS) $(COMMONLIBS) $(LIBZ)
+	$(CODE_SIGN) -s "$(CODE_SIGN_IDENTITY)" $@
 
 
 #
@@ -415,8 +422,9 @@ testcache:	testcache.o $(LIBCUPSSTATIC)
 
 testconflicts:	testconflicts.o $(LIBCUPSSTATIC)
 	echo Linking $@...
-	$(CC) $(LDFLAGS) -o $@ testconflicts.o $(LIBCUPSSTATIC) \
+	$(LD_CC) $(LDFLAGS) -o $@ testconflicts.o $(LIBCUPSSTATIC) \
 		$(LIBGSSAPI) $(SSLLIBS) $(DNSSDLIBS) $(COMMONLIBS) $(LIBZ)
+	$(CODE_SIGN) -s "$(CODE_SIGN_IDENTITY)" $@
 
 
 #
@@ -425,8 +433,9 @@ testconflicts:	testconflicts.o $(LIBCUPSSTATIC)
 
 testcreds:	testcreds.o $(LIBCUPSSTATIC)
 	echo Linking $@...
-	$(CC) $(ARCHFLAGS) $(LDFLAGS) -o $@ testcreds.o $(LIBCUPSSTATIC) \
+	$(LD_CC) $(ARCHFLAGS) $(LDFLAGS) -o $@ testcreds.o $(LIBCUPSSTATIC) \
 		$(LIBGSSAPI) $(SSLLIBS) $(DNSSDLIBS) $(COMMONLIBS) $(LIBZ)
+	$(CODE_SIGN) -s "$(CODE_SIGN_IDENTITY)" $@
 
 
 #
@@ -435,8 +444,9 @@ testcreds:	testcreds.o $(LIBCUPSSTATIC)
 
 testcups:	testcups.o $(LIBCUPSSTATIC)
 	echo Linking $@...
-	$(CC) $(LDFLAGS) -o $@ testcups.o $(LIBCUPSSTATIC) \
+	$(LD_CC) $(LDFLAGS) -o $@ testcups.o $(LIBCUPSSTATIC) \
 		$(LIBGSSAPI) $(SSLLIBS) $(DNSSDLIBS) $(COMMONLIBS) $(LIBZ)
+	$(CODE_SIGN) -s "$(CODE_SIGN_IDENTITY)" $@
 
 
 #
@@ -445,8 +455,9 @@ testcups:	testcups.o $(LIBCUPSSTATIC)
 
 testdest:	testdest.o $(LIBCUPSSTATIC)
 	echo Linking $@...
-	$(CC) $(LDFLAGS) -o $@ testdest.o $(LIBCUPSSTATIC) \
+	$(LD_CC) $(LDFLAGS) -o $@ testdest.o $(LIBCUPSSTATIC) \
 		$(LIBGSSAPI) $(SSLLIBS) $(DNSSDLIBS) $(COMMONLIBS) $(LIBZ)
+	$(CODE_SIGN) -s "$(CODE_SIGN_IDENTITY)" $@
 
 
 #
@@ -455,10 +466,22 @@ testdest:	testdest.o $(LIBCUPSSTATIC)
 
 testfile:	testfile.o $(LIBCUPSSTATIC)
 	echo Linking $@...
-	$(CC) $(ARCHFLAGS) $(LDFLAGS) -o $@ testfile.o $(LIBCUPSSTATIC) \
+	$(LD_CC) $(ARCHFLAGS) $(LDFLAGS) -o $@ testfile.o $(LIBCUPSSTATIC) \
 		$(LIBGSSAPI) $(SSLLIBS) $(DNSSDLIBS) $(COMMONLIBS) $(LIBZ)
+	$(CODE_SIGN) -s "$(CODE_SIGN_IDENTITY)" $@
 	echo Running file API tests...
 	./testfile
+
+
+#
+# testgetdests (dependency on static CUPS library is intentional)
+#
+
+testgetdests:	testgetdests.o $(LIBCUPSSTATIC)
+	echo Linking $@...
+	$(LD_CC) $(LDFLAGS) -o $@ testgetdests.o $(LIBCUPSSTATIC) \
+		$(LIBGSSAPI) $(SSLLIBS) $(DNSSDLIBS) $(COMMONLIBS) $(LIBZ)
+	$(CODE_SIGN) -s "$(CODE_SIGN_IDENTITY)" $@
 
 
 #
@@ -467,8 +490,9 @@ testfile:	testfile.o $(LIBCUPSSTATIC)
 
 testhttp:	testhttp.o $(LIBCUPSSTATIC)
 	echo Linking $@...
-	$(CC) $(ARCHFLAGS) $(LDFLAGS) -o $@ testhttp.o $(LIBCUPSSTATIC) \
+	$(LD_CC) $(ARCHFLAGS) $(LDFLAGS) -o $@ testhttp.o $(LIBCUPSSTATIC) \
 		$(LIBGSSAPI) $(SSLLIBS) $(DNSSDLIBS) $(COMMONLIBS) $(LIBZ)
+	$(CODE_SIGN) -s "$(CODE_SIGN_IDENTITY)" $@
 	echo Running HTTP API tests...
 	./testhttp
 
@@ -479,8 +503,9 @@ testhttp:	testhttp.o $(LIBCUPSSTATIC)
 
 testipp:	testipp.o $(LIBCUPSSTATIC)
 	echo Linking $@...
-	$(CC) $(ARCHFLAGS) $(LDFLAGS) -o $@ testipp.o $(LIBCUPSSTATIC) \
+	$(LD_CC) $(ARCHFLAGS) $(LDFLAGS) -o $@ testipp.o $(LIBCUPSSTATIC) \
 		$(LIBGSSAPI) $(SSLLIBS) $(DNSSDLIBS) $(COMMONLIBS) $(LIBZ)
+	$(CODE_SIGN) -s "$(CODE_SIGN_IDENTITY)" $@
 	echo Running IPP API tests...
 	./testipp
 
@@ -491,8 +516,9 @@ testipp:	testipp.o $(LIBCUPSSTATIC)
 
 testi18n:	testi18n.o $(LIBCUPSSTATIC)
 	echo Linking $@...
-	$(CC) $(ARCHFLAGS) $(LDFLAGS) -o $@ testi18n.o $(LIBCUPSSTATIC) \
+	$(LD_CC) $(ARCHFLAGS) $(LDFLAGS) -o $@ testi18n.o $(LIBCUPSSTATIC) \
 		$(LIBGSSAPI) $(SSLLIBS) $(DNSSDLIBS) $(COMMONLIBS) $(LIBZ)
+	$(CODE_SIGN) -s "$(CODE_SIGN_IDENTITY)" $@
 	echo Running internationalization API tests...
 	./testi18n
 
@@ -503,10 +529,23 @@ testi18n:	testi18n.o $(LIBCUPSSTATIC)
 
 testlang:	testlang.o $(LIBCUPSSTATIC)
 	echo Linking $@...
-	$(CC) $(ARCHFLAGS) $(LDFLAGS) -o $@ testlang.o $(LIBCUPSSTATIC) \
+	$(LD_CC) $(ARCHFLAGS) $(LDFLAGS) -o $@ testlang.o $(LIBCUPSSTATIC) \
 		$(LIBGSSAPI) $(SSLLIBS) $(DNSSDLIBS) $(COMMONLIBS) $(LIBZ)
+	$(CODE_SIGN) -s "$(CODE_SIGN_IDENTITY)" $@
+	echo Creating locale directory structure...
+	$(RM) -r locale
+	$(MKDIR) locale/en
+	echo 'msgid "No"' > locale/en/cups_en.po
+	echo 'msgstr "No"' >> locale/en/cups_en.po
+	echo 'msgid "Yes"' >> locale/en/cups_en.po
+	echo 'msgstr "Yes"' >> locale/en/cups_en.po
+	for po in ../locale/cups_*.po; do \
+		lang=`basename $$po .po | sed -e '1,$$s/^cups_//'`; \
+		$(MKDIR) locale/$$lang; \
+		$(LN) ../../$$po locale/$$lang; \
+	done
 	echo Running language API tests...
-	./testlang
+	LOCALEDIR=locale ./testlang
 
 
 #
@@ -515,8 +554,9 @@ testlang:	testlang.o $(LIBCUPSSTATIC)
 
 testoptions:	testoptions.o $(LIBCUPSSTATIC)
 	echo Linking $@...
-	$(CC) $(ARCHFLAGS) $(LDFLAGS) -o $@ testoptions.o $(LIBCUPSSTATIC) \
+	$(LD_CC) $(ARCHFLAGS) $(LDFLAGS) -o $@ testoptions.o $(LIBCUPSSTATIC) \
 		$(LIBGSSAPI) $(SSLLIBS) $(DNSSDLIBS) $(COMMONLIBS) $(LIBZ)
+	$(CODE_SIGN) -s "$(CODE_SIGN_IDENTITY)" $@
 	echo Running option API tests...
 	./testoptions
 
@@ -527,8 +567,9 @@ testoptions:	testoptions.o $(LIBCUPSSTATIC)
 
 testppd:	testppd.o $(LIBCUPSSTATIC) test.ppd test2.ppd
 	echo Linking $@...
-	$(CC) $(ARCHFLAGS) $(LDFLAGS) -o $@ testppd.o $(LIBCUPSSTATIC) \
+	$(LD_CC) $(ARCHFLAGS) $(LDFLAGS) -o $@ testppd.o $(LIBCUPSSTATIC) \
 		$(LIBGSSAPI) $(SSLLIBS) $(DNSSDLIBS) $(COMMONLIBS) $(LIBZ)
+	$(CODE_SIGN) -s "$(CODE_SIGN_IDENTITY)" $@
 	echo Running PPD API tests...
 	./testppd
 
@@ -539,8 +580,9 @@ testppd:	testppd.o $(LIBCUPSSTATIC) test.ppd test2.ppd
 
 testpwg:	testpwg.o $(LIBCUPSSTATIC) test.ppd
 	echo Linking $@...
-	$(CC) $(ARCHFLAGS) $(LDFLAGS) -o $@ testpwg.o $(LIBCUPSSTATIC) \
+	$(LD_CC) $(ARCHFLAGS) $(LDFLAGS) -o $@ testpwg.o $(LIBCUPSSTATIC) \
 		$(LIBGSSAPI) $(SSLLIBS) $(DNSSDLIBS) $(COMMONLIBS) $(LIBZ)
+	$(CODE_SIGN) -s "$(CODE_SIGN_IDENTITY)" $@
 	echo Running PWG API tests...
 	./testpwg test.ppd
 
@@ -551,8 +593,9 @@ testpwg:	testpwg.o $(LIBCUPSSTATIC) test.ppd
 
 testsnmp:	testsnmp.o $(LIBCUPSSTATIC)
 	echo Linking $@...
-	$(CC) $(LDFLAGS) -o $@ testsnmp.o $(LIBCUPSSTATIC) \
+	$(LD_CC) $(LDFLAGS) -o $@ testsnmp.o $(LIBCUPSSTATIC) \
 		$(LIBGSSAPI) $(SSLLIBS) $(DNSSDLIBS) $(COMMONLIBS) $(LIBZ)
+	$(CODE_SIGN) -s "$(CODE_SIGN_IDENTITY)" $@
 
 
 #
@@ -561,8 +604,9 @@ testsnmp:	testsnmp.o $(LIBCUPSSTATIC)
 
 tlscheck:	tlscheck.o $(LIBCUPSSTATIC)
 	echo Linking $@...
-	$(CC) $(ARCHFLAGS) $(LDFLAGS) -o $@ tlscheck.o $(LIBCUPSSTATIC) \
+	$(LD_CC) $(ARCHFLAGS) $(LDFLAGS) -o $@ tlscheck.o $(LIBCUPSSTATIC) \
 		$(LIBGSSAPI) $(SSLLIBS) $(DNSSDLIBS) $(COMMONLIBS) $(LIBZ)
+	$(CODE_SIGN) -s "$(CODE_SIGN_IDENTITY)" $@
 
 
 #
@@ -571,56 +615,27 @@ tlscheck:	tlscheck.o $(LIBCUPSSTATIC)
 
 apihelp:
 	echo Generating CUPS API help files...
-	mxmldoc --section "Programming" \
-		--title "Introduction to CUPS Programming" \
-		--css ../doc/cups-printable.css \
-		--header api-overview.header --intro api-overview.shtml \
-		>../doc/help/api-overview.html
+	$(RM) cupspm.xml
+	mxmldoc --section "Programming" --body cupspm.md \
+		cupspm.xml \
+		auth.c cups.h dest*.c encode.c http.h http*.c ipp.h ipp*.c \
+		options.c tls-darwin.c usersys.c util.c \
+		--coverimage cupspm.png \
+		--epub ../doc/help/cupspm.epub
+	mxmldoc --section "Programming" --body cupspm.md \
+		cupspm.xml > ../doc/help/cupspm.html
+	$(RM) cupspm.xml
 	mxmldoc --section "Programming" --title "Administration APIs" \
 		--css ../doc/cups-printable.css \
 		--header api-admin.header --intro api-admin.shtml \
 		api-admin.xml \
 		adminutil.c adminutil.h getdevices.c >../doc/help/api-admin.html
-	mxmldoc --tokens help/api-admin.html api-admin.xml >../doc/help/api-admin.tokens
 	$(RM) api-admin.xml
-	mxmldoc --section "Programming" --title "Array API" \
-		--css ../doc/cups-printable.css \
-		--header api-array.header --intro api-array.shtml \
-		api-array.xml \
-		array.h array.c >../doc/help/api-array.html
-	mxmldoc --tokens help/api-array.html api-array.xml >../doc/help/api-array.tokens
-	$(RM) api-array.xml
-	mxmldoc --section "Programming" --title "CUPS API" \
-		--css ../doc/cups-printable.css \
-		--header api-cups.header --intro api-cups.shtml \
-		api-cups.xml \
-		cups.h pwg.h adminutil.c dest*.c language.c notify.c \
-		options.c pwg-media.c tempfile.c usersys.c \
-		util.c >../doc/help/api-cups.html
-	mxmldoc --tokens help/api-cups.html api-cups.xml >../doc/help/api-cups.tokens
-	$(RM) api-cups.xml
-	mxmldoc --section "Programming" --title "File and Directory APIs" \
-		--css ../doc/cups-printable.css \
-		--header api-filedir.header --intro api-filedir.shtml \
-		api-filedir.xml \
-		file.h file.c dir.h dir.c >../doc/help/api-filedir.html
-	mxmldoc --tokens api-filedir.xml >../doc/help/api-filedir.tokens
-	$(RM) api-filedir.xml
 	mxmldoc --section "Programming" --title "PPD API (DEPRECATED)" \
 		--css ../doc/cups-printable.css \
 		--header api-ppd.header --intro api-ppd.shtml \
 		api-ppd.xml ppd.h ppd-*.c >../doc/help/api-ppd.html
-	mxmldoc --tokens help/api-ppd.html api-ppd.xml >../doc/help/api-ppd.tokens
 	$(RM) api-ppd.xml
-	mxmldoc --section "Programming" --title "HTTP and IPP APIs" \
-		--css ../doc/cups-printable.css \
-		--header api-httpipp.header --intro api-httpipp.shtml \
-		api-httpipp.xml \
-		http.h ipp.h auth.c getdevices.c getputfile.c encode.c \
-		http.c http-addr.c http-support.c ipp.c ipp-support.c \
-		md5passwd.c request.c >../doc/help/api-httpipp.html
-	mxmldoc --tokens help/api-httpipp.html api-httpipp.xml >../doc/help/api-httpipp.tokens
-	$(RM) api-httpipp.xml
 	mxmldoc --section "Programming" \
 		--title "Filter and Backend Programming" \
 		--css ../doc/cups-printable.css \
@@ -628,7 +643,6 @@ apihelp:
 		api-filter.xml \
 		backchannel.c backend.h backend.c sidechannel.c sidechannel.h \
 		>../doc/help/api-filter.html
-	mxmldoc --tokens help/api-filter.html api-filter.xml >../doc/help/api-filter.tokens
 	$(RM) api-filter.xml
 
 
@@ -637,8 +651,6 @@ apihelp:
 #
 
 sloc:
-	echo "libcupslite: \c"
-	sloccount $(LITEOBJS:.o=.c) 2>/dev/null | grep "Total Physical" | awk '{print $$9}'
 	echo "libcups: \c"
 	sloccount $(LIBOBJS:.o=.c) 2>/dev/null | grep "Total Physical" | awk '{print $$9}'
 
