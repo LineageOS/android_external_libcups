@@ -395,11 +395,11 @@ _cupsSNMPRead(int         fd,		/* I - SNMP socket file descriptor */
 
       ready = select(fd + 1, &input_set, NULL, NULL, &stimeout);
     }
-#  ifdef WIN32
+#  ifdef _WIN32
     while (ready < 0 && WSAGetLastError() == WSAEINTR);
 #  else
     while (ready < 0 && (errno == EINTR || errno == EAGAIN));
-#  endif /* WIN32 */
+#  endif /* _WIN32 */
 #endif /* HAVE_POLL */
 
    /*
@@ -738,6 +738,10 @@ asn1_debug(const char    *prefix,	/* I - Prefix string */
   unsigned	value_length;		/* Length of value */
   _cups_globals_t *cg = _cupsGlobals();	/* Global data */
 
+
+#ifdef __clang_analyzer__ /* Suppress bogus clang error */
+  memset(string, 0, sizeof(string));
+#endif /* __clang_analyzer__ */
 
   if (cg->snmp_debug <= 0)
     return;

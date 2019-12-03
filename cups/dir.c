@@ -3,7 +3,7 @@
  *
  * This set of APIs abstracts enumeration of directory entries.
  *
- * Copyright 2007-2012 by Apple Inc.
+ * Copyright 2007-2017 by Apple Inc.
  * Copyright 1997-2005 by Easy Software Products, all rights reserved.
  *
  * These coded instructions, statements, and computer programs are the
@@ -26,7 +26,7 @@
  * Windows implementation...
  */
 
-#ifdef WIN32
+#ifdef _WIN32
 #  include <windows.h>
 
 /*
@@ -145,7 +145,7 @@ cupsDirOpen(const char *directory)	/* I - Directory name */
 cups_dentry_t *				/* O - Directory entry or @code NULL@ if there are no more */
 cupsDirRead(cups_dir_t *dp)		/* I - Directory pointer */
 {
-  WIN32_FIND_DATA	entry;		/* Directory entry data */
+  WIN32_FIND_DATAA	entry;		/* Directory entry data */
 
 
  /*
@@ -165,11 +165,11 @@ cupsDirRead(cups_dir_t *dp)		/* I - Directory pointer */
     * No, find the first file...
     */
 
-    dp->dir = FindFirstFile(dp->directory, &entry);
+    dp->dir = FindFirstFileA(dp->directory, &entry);
     if (dp->dir == INVALID_HANDLE_VALUE)
       return (NULL);
   }
-  else if (!FindNextFile(dp->dir, &entry))
+  else if (!FindNextFileA(dp->dir, &entry))
     return (NULL);
 
  /*
@@ -338,10 +338,6 @@ cupsDirRead(cups_dir_t *dp)		/* I - Directory pointer */
 {
   struct dirent	*entry;			/* Pointer to entry */
   char		filename[1024];		/* Full filename */
-#  ifdef HAVE_PTHREAD_H
-  char		buffer[sizeof(struct dirent) + 1024];
-					/* Directory entry buffer */
-#  endif /* HAVE_PTHREAD_H */
 
 
   DEBUG_printf(("2cupsDirRead(dp=%p)", (void *)dp));
@@ -359,29 +355,8 @@ cupsDirRead(cups_dir_t *dp)		/* I - Directory pointer */
 
   for (;;)
   {
-#  ifdef HAVE_PTHREAD_H
    /*
-    * Read the next entry using the reentrant version of readdir...
-    */
-
-    if (readdir_r(dp->dir, (struct dirent *)buffer, &entry))
-    {
-      DEBUG_printf(("3cupsDirRead: readdir_r() failed - %s\n", strerror(errno)));
-      return (NULL);
-    }
-
-    if (!entry)
-    {
-      DEBUG_puts("3cupsDirRead: readdir_r() returned a NULL pointer!");
-      return (NULL);
-    }
-
-    DEBUG_printf(("4cupsDirRead: readdir_r() returned \"%s\"...",
-                  entry->d_name));
-
-#  else
-   /*
-    * Read the next entry using the original version of readdir...
+    * Read the next entry...
     */
 
     if ((entry = readdir(dp->dir)) == NULL)
@@ -391,8 +366,6 @@ cupsDirRead(cups_dir_t *dp)		/* I - Directory pointer */
     }
 
     DEBUG_printf(("4cupsDirRead: readdir() returned \"%s\"...", entry->d_name));
-
-#  endif /* HAVE_PTHREAD_H */
 
    /*
     * Skip "." and ".."...
@@ -449,4 +422,4 @@ cupsDirRewind(cups_dir_t *dp)		/* I - Directory pointer */
 
   rewinddir(dp->dir);
 }
-#endif /* WIN32 */
+#endif /* _WIN32 */
