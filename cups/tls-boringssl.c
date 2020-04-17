@@ -443,6 +443,8 @@ _httpTLSStart(http_t *http)		/* I - Connection to server */
 
     if (error != 0)
     {
+      SSL_free(http->tls);
+      http->tls = NULL;
       http->error  = errno = EINVAL;
       http->status = HTTP_STATUS_ERROR;
       _cupsSetError(IPP_STATUS_ERROR_INTERNAL, _("Client rejected the server certificate."), 1);
