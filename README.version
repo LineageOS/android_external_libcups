@@ -6,4 +6,5 @@ CUPS is the standards-based, open source printing system developed by Apple Inc.
 
 Local Modifications:
         Fix for CVE-2020-3898 (I1e4988e753c0ed1df43937b3009fd62ecd81ccc0)
+        Fix for CVE-2019-8842 (Ib3d4260899941f0c8050cf6d77a9022db63bdc66)
         Use boringSSL
