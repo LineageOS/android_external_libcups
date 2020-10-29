@@ -7,12 +7,13 @@ third_party {
   }
   url {
     type: ARCHIVE
-    value: "https://github.com/apple/cups/releases/download/v2.3.1/cups-2.3.1-source.tar.gz"
+    value: "https://github.com/apple/cups/releases/download/v2.3.3/cups-2.3.3-source.tar.gz"
   }
-  version: "v2.3.1"
+  version: "v2.3.3"
+  license_type: RESTRICTED
   last_upgrade_date {
-    year: 2019
-    month: 12
-    day: 13
+    year: 2020
+    month: 10
+    day: 28
   }
 }
