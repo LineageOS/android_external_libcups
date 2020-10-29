@@ -31,7 +31,6 @@ cc_library_shared {
         "cups/encode.c",
         "cups/file.c",
         "cups/getdevices.c",
-        "cups/getifaddrs.c",
         "cups/getputfile.c",
         "cups/globals.c",
         "cups/hash.c",
