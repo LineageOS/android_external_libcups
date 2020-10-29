@@ -12,7 +12,6 @@
  * Include necessary headers.
  */
 
-#include "versioning.h"
 #include "getifaddrs-internal.h"
 
 
